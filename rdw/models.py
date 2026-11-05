@@ -30,6 +30,15 @@ class AxisAlignedSpace:
 
 
 @dataclass(frozen=True)
+class ControlLimits:
+    max_abs_curvature: float = 0.25
+    min_translation_gain: float = 0.86
+    max_translation_gain: float = 1.26
+    min_rotation_gain: float = 0.67
+    max_rotation_gain: float = 1.24
+
+
+@dataclass(frozen=True)
 class Observation:
     step: int
     dt: float
@@ -39,15 +48,9 @@ class Observation:
     virtual_heading: float
     walking_speed: float
     space: AxisAlignedSpace
-
-
-@dataclass(frozen=True)
-class ControlLimits:
-    max_abs_curvature: float = 0.25
-    min_translation_gain: float = 0.86
-    max_translation_gain: float = 1.26
-    min_rotation_gain: float = 0.67
-    max_rotation_gain: float = 1.24
+    # The simulator clamps every command to these limits; controllers read them
+    # so that all algorithms share one set of perceptual thresholds.
+    limits: ControlLimits = ControlLimits()
 
 
 @dataclass(frozen=True)

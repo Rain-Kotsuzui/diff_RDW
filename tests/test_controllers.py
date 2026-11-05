@@ -31,7 +31,7 @@ def test_controllers_share_the_same_input_output_contract() -> None:
 def test_controller_modules_are_discovered_automatically() -> None:
     controllers = discover_controllers()
 
-    assert set(controllers) == {"none", "s2c"}
+    assert set(controllers) == {"apf", "none", "s2c", "s2o"}
     assert issubclass(NoRedirection, Redirector)
     assert issubclass(SteerToCenter, Redirector)
     assert isinstance(controllers["none"](), NoRedirection)
@@ -42,8 +42,9 @@ def test_s2c_turns_toward_room_center() -> None:
     controller = SteerToCenter()
 
     turn_from_north = controller.compute(observation((2.0, 0.0), math.pi / 2))
+    controller.reset()
     turn_from_south = controller.compute(observation((2.0, 0.0), -math.pi / 2))
 
     assert turn_from_north.curvature > 0
     assert turn_from_south.curvature < 0
-    assert abs(turn_from_north.curvature) <= controller.max_abs_curvature
+    assert abs(turn_from_north.curvature) <= 1.0 / controller.curvature_radius
