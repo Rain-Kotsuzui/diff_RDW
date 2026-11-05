@@ -1,33 +1,52 @@
+"""Steer-to-Center (Razzaque 2005; Hodgson & Bachmann 2013)."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
 
-from rdw.controllers.base import Redirector
-from rdw.math2d import angle_of, subtract, wrap_angle
-from rdw.models import Observation, RedirectionCommand
+from rdw.controllers._steering import SteeringGoal, SteeringRedirector, goal_toward
+from rdw.math2d import Vec2, add, angle_of, direction, scale, subtract, wrap_angle
+from rdw.models import Observation
 
 
 @dataclass
-class SteerToCenter(Redirector):
-    """Proportional Steer-to-Center baseline."""
+class SteerToCenter(SteeringRedirector):
+    """Steer the user toward the center of the physical space.
 
-    heading_gain: float = 0.8
-    max_abs_curvature: float = 0.2
+    When the center is almost straight behind the user, the sign of the
+    heading error flips easily and steering would oscillate. In that case a
+    temporary target is placed to the side of the user, on the side of the
+    center, and kept until the center is in front again.
+    """
+
+    temp_target_bearing: float = math.radians(160.0)
+    temp_target_distance: float = 4.0
+
+    _temp_target: Vec2 | None = field(default=None, init=False, repr=False)
 
     @property
     def name(self) -> str:
         return "s2c"
 
-    def reset(self) -> None:
-        pass
+    def reset_goal_state(self) -> None:
+        self._temp_target = None
 
-    def compute(self, observation: Observation) -> RedirectionCommand:
-        to_center = subtract(observation.space.center, observation.physical_position)
-        target_heading = angle_of(to_center)
-        heading_error = wrap_angle(target_heading - observation.physical_heading)
-        curvature = self.heading_gain * heading_error
-        curvature = max(-self.max_abs_curvature, min(curvature, self.max_abs_curvature))
-        return RedirectionCommand(curvature=curvature)
+    def steering_goal(self, observation: Observation) -> SteeringGoal | None:
+        center = observation.space.center
+        position = observation.physical_position
+        heading = observation.physical_heading
+        bearing = wrap_angle(angle_of(subtract(center, position)) - heading)
+
+        if abs(bearing) >= self.temp_target_bearing:
+            if self._temp_target is None:
+                side = 1.0 if bearing >= 0 else -1.0
+                offset = scale(direction(heading + side * math.pi / 2), self.temp_target_distance)
+                self._temp_target = add(position, offset)
+            return goal_toward(observation, self._temp_target)
+
+        self._temp_target = None
+        return goal_toward(observation, center)
 
 
 CONTROLLER_FACTORY = SteerToCenter

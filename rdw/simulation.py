@@ -69,6 +69,7 @@ class Simulator:
                 virtual_heading=virtual_heading,
                 walking_speed=scenario.walking_speed,
                 space=scenario.space,
+                limits=config.limits,
             )
 
             start = perf_counter()
